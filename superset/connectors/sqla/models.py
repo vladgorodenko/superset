@@ -98,9 +98,9 @@ from superset.models.helpers import (
     AuditMixinNullable,
     CertificationMixin,
     ExploreMixin,
+    process_sql_expression,
     QueryResult,
     QueryStringExtended,
-    validate_adhoc_subquery,
 )
 from superset.sql_parse import ParsedQuery, sanitize_clause
 from superset.superset_typing import (
@@ -471,27 +471,6 @@ sqlatable_user = Table(
     Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
     Column("table_id", Integer, ForeignKey("tables.id", ondelete="CASCADE")),
 )
-
-
-def _process_sql_expression(
-    expression: str | None,
-    database_id: int,
-    schema: str,
-    template_processor: BaseTemplateProcessor | None = None,
-) -> str | None:
-    if template_processor and expression:
-        expression = template_processor.process_template(expression)
-    if expression:
-        try:
-            expression = validate_adhoc_subquery(
-                expression,
-                database_id,
-                schema,
-            )
-            expression = sanitize_clause(expression)
-        except (QueryClauseValidationException, SupersetSecurityException) as ex:
-            raise QueryObjectValidationError(ex.message) from ex
-    return expression
 
 
 class SqlaTable(
@@ -956,7 +935,7 @@ class SqlaTable(
                 sqla_column = column(column_name)
             sqla_metric = self.sqla_aggregations[metric["aggregate"]](sqla_column)
         elif expression_type == utils.AdhocMetricExpressionType.SQL:
-            expression = _process_sql_expression(
+            expression = process_sql_expression(
                 expression=metric["sqlExpression"],
                 database_id=self.database_id,
                 schema=self.schema,
@@ -986,7 +965,7 @@ class SqlaTable(
         :rtype: sqlalchemy.sql.column
         """
         label = utils.get_column_name(col)
-        expression = _process_sql_expression(
+        expression = process_sql_expression(
             expression=col["sqlExpression"],
             database_id=self.database_id,
             schema=self.schema,
