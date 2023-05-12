@@ -23,7 +23,7 @@ from urllib import parse
 
 import sqlparse
 from sqlalchemy import and_
-from sqloxide import parse_sql
+from sqloxide import parse_sql  # pylint: disable=no-name-in-module
 from sqlparse import keywords
 from sqlparse.lexer import Lexer
 from sqlparse.sql import (
@@ -267,16 +267,15 @@ class ParsedQuery:
         for statement in parsed:
             # Check if this is a CTE
             if statement.is_group and statement[0].ttype == Keyword.CTE:
-                if sqloxide_parse is not None:
-                    try:
-                        if not self._check_cte_is_select(
-                            sqloxide_parse(self.strip_comments(), dialect="ansi")
-                        ):
-                            return False
-                    except ValueError:
-                        # sqloxide was not able to parse the query, so let's continue with
-                        # sqlparse
-                        pass
+                try:
+                    if not self._check_cte_is_select(
+                        parse_sql(self.strip_comments(), dialect="ansi")
+                    ):
+                        return False
+                except ValueError:
+                    # sqloxide was not able to parse the query, so let's continue with
+                    # sqlparse
+                    pass
                 inner_cte = self.get_inner_cte_expression(statement.tokens) or []
                 # Check if the inner CTE is a not a SELECT
                 if any(token.ttype == DDL for token in inner_cte) or any(
@@ -775,7 +774,7 @@ RE_JINJA_BLOCK = re.compile(r"\{[%#][^\{\}%#]+[%#]\}")
 
 def extract_table_references(
     sql_text: str,
-    sqla_dialect: str,
+    sqla_dialect: Optional[str] = None,
     show_warning: bool = True,
 ) -> set["Table"]:
     """
@@ -791,7 +790,7 @@ def extract_table_references(
     sql_text = RE_JINJA_VAR.sub("abc", sql_text)
     try:
         tree = parse_sql(sql_text, dialect=sqloxide_dialect)
-    except Exception as ex:  # pylint: disable=broad-except
+    except Exception as ex:
         if show_warning:
             logger.warning(
                 "\nUnable to parse query with sqloxide:\n%s\n%s", sql_text, ex

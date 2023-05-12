@@ -1618,8 +1618,6 @@ def test_extract_table_references(mocker: MockerFixture) -> None:
         Table(table="table", schema=None, catalog=None),
         Table(table="other_table", schema=None, catalog=None),
     }
-<<<<<<< HEAD
-    logger.warning.assert_not_called()
 
 
 def test_is_select() -> None:
@@ -1637,5 +1635,3 @@ WITH t AS (
 )
 SELECT * FROM t"""
     ).is_select()
-=======
->>>>>>> 748876648e (feat: robust(er) adhoc query validation)
