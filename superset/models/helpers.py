@@ -43,7 +43,7 @@ from flask_appbuilder.models.mixins import AuditMixin
 from flask_appbuilder.security.sqla.models import User
 from flask_babel import lazy_gettext as _
 from jinja2.exceptions import TemplateError
-from sqlalchemy import and_, Column, or_, UniqueConstraint
+from sqlalchemy import and_, Column, dialects, or_, UniqueConstraint
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Mapper, Session, validates
 from sqlalchemy.orm.exc import MultipleResultsFound
@@ -1608,6 +1608,10 @@ class ExploreMixin:  # pylint: disable=too-many-public-methods
         columns = [col for col in columns if col != utils.DTTM_ALIAS]
         dttm_col = columns_by_name.get(granularity) if granularity else None
 
+        # use quoter for quoting column names
+        dialect = dialects.registry.load(self.db_engine_spec.engine)
+        quoter = dialect().identifier_preparer.quote
+
         if need_groupby:
             # dedup columns while preserving order
             columns = groupby or columns
@@ -1629,7 +1633,7 @@ class ExploreMixin:  # pylint: disable=too-many-public-methods
                         )
                     else:
                         selected = validate_adhoc_subquery(
-                            selected,
+                            quoter(selected),
                             self.database_id,
                             self.schema,
                             self.db_engine_spec.engine,
@@ -1652,7 +1656,7 @@ class ExploreMixin:  # pylint: disable=too-many-public-methods
                     _sql = selected["sqlExpression"]
                     _column_label = selected["label"]
                 elif isinstance(selected, str):
-                    _sql = selected
+                    _sql = quoter(selected)
                     _column_label = selected
 
                 selected = validate_adhoc_subquery(
